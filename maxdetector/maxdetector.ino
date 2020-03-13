@@ -1,6 +1,7 @@
 #define PIN_BUTTON (1 << 0)
 #define PIN_LED (1 << 5)
 #define PIN_SIGNAL (1 << 2)
+#define PIN_BELL (1 << 4)
 
 #define PIN_BUZZER 11
 
@@ -8,17 +9,24 @@
 #define BUTTON_RELEASED 0b00000111
 #define BUTTON_MASK     0b11000111
 
+#define NUM_BELLS 3
+
 uint8_t button_history = 0;
-uint8_t keydown = 0;
+int keydown = 0;
 unsigned long last_update = 0;
 unsigned long last_tone_change = 0;
-uint8_t silent_mode = 0;
-uint8_t state = 0;
-uint16_t degree = 0;
+int silent_mode = 0;
+int state = 0;
+int bells = NUM_BELLS;
 
 void setup() {
-  DDRB = PIN_LED | PIN_BUZZER;
+  DDRB = PIN_LED | PIN_BELL;
+
+  // set pull-up on button input
   PORTB |= PIN_BUTTON;
+
+  // ensure bell is off
+  PORTB |= PIN_BELL;
 
   Serial.begin(115200);
   Serial.write("Started.\r\n");
@@ -30,35 +38,39 @@ void loop() {
 
   // This ensures that activating silent mode cancels the buzzer immediately.
   if (silent_mode)
-    noTone(PIN_BUZZER);
+    PORTB |= PIN_BELL;
 
   if (state == 0) {
     if (PINB & PIN_SIGNAL) {
       Serial.write("Alarm activated.\r\n");
       PORTB |= PIN_LED;
       state = 1;
+      bells = NUM_BELLS;
     }
   } else if (state == 1) {
     if (! (PINB & PIN_SIGNAL)) {
       Serial.write("Alarm deactivated.\r\n");
       PORTB &= ~(PIN_LED);
-      noTone(PIN_BUZZER);
+      PORTB |= PIN_BELL;
       state = 0;
+    } else if (silent_mode) {
+      // do nothing
     } else {
-      if (! silent_mode && (now - last_tone_change) > 10) {
+      if (now - last_tone_change > 1000) {
+        Serial.write("Ding.\r\n");
         last_tone_change = now;
-        float radian = (degree * 71) / 4068.0;
-        int freq = int(1000 + sin(radian) * 1000);
-        degree = (degree + 1) % 180;
-        /*
-          Serial.write("F:");
-          Serial.print(degree);
-          Serial.write(':');
-          Serial.print(freq);
-          Serial.write("\r\n");
-        */
-        tone(PIN_BUZZER, freq);
+        PORTB ^= PIN_BELL;
+        if (! bells--)
+          state = 2;
       }
+    }
+  } else if (state == 2) {
+    PORTB |= PIN_BELL;
+
+    if (! (PINB & PIN_SIGNAL)) {
+      Serial.write("Alarm deactivated.\r\n");
+      PORTB &= ~(PIN_LED);
+      state = 0;
     }
   }
 
