@@ -1,9 +1,10 @@
-#define PIN_BUTTON (1 << 0)
-#define PIN_LED (1 << 5)
-#define PIN_SIGNAL (1 << 2)
-#define PIN_BELL (1 << 4)
+#define PIN_BUTTON      (1 << 0)    // D8
+#define PIN_SIGNAL      (1 << 2)    // D10
+#define PIN_BELL        (1 << 4)    // D12
 
-#define PIN_BUZZER 11
+#define PIN_LED_POWER   (1 << 5)    // D5
+#define PIN_LED_SILENT  (1 << 6)    // D6
+#define PIN_LED_ALARM   (1 << 7)    // D7
 
 #define BUTTON_PRESSED  0b11000000
 #define BUTTON_RELEASED 0b00000111
@@ -11,16 +12,19 @@
 
 #define NUM_BELLS 3
 
+typedef unsigned long time_t;
+
 uint8_t button_history = 0;
 int keydown = 0;
-unsigned long last_update = 0;
-unsigned long last_tone_change = 0;
+time_t last_update = 0;
+time_t last_tone_change = 0;
 int silent_mode = 0;
 int state = 0;
 int bells = NUM_BELLS;
 
 void setup() {
-  DDRB = PIN_LED | PIN_BELL;
+  DDRB = PIN_BELL;
+  DDRD = PIN_LED_POWER|PIN_LED_SILENT|PIN_LED_ALARM;
 
   // set pull-up on button input
   PORTB |= PIN_BUTTON;
@@ -28,29 +32,36 @@ void setup() {
   // ensure bell is off
   PORTB |= PIN_BELL;
 
+  // ensure power LED is on, others are off
+  PORTD = PIN_LED_POWER;
+
   Serial.begin(115200);
   Serial.write("Started.\r\n");
   Serial.write("\r\n");
 }
 
 void loop() {
-  unsigned long now = millis();
+  time_t now = millis();
 
-  // This ensures that activating silent mode cancels the buzzer immediately.
-  if (silent_mode)
+  // This ensures that activating silent mode cancels the alarm immediately.
+  if (silent_mode) {
     PORTB |= PIN_BELL;
+    PORTD |= PIN_LED_SILENT;
+  } else {
+    PORTD &= ~(PIN_LED_SILENT);
+  }
 
   if (state == 0) {
     if (PINB & PIN_SIGNAL) {
       Serial.write("Alarm activated.\r\n");
-      PORTB |= PIN_LED;
+      PORTD |= PIN_LED_ALARM;
       state = 1;
       bells = NUM_BELLS;
     }
   } else if (state == 1) {
     if (! (PINB & PIN_SIGNAL)) {
       Serial.write("Alarm deactivated.\r\n");
-      PORTB &= ~(PIN_LED);
+      PORTD &= ~(PIN_LED_ALARM);
       PORTB |= PIN_BELL;
       state = 0;
     } else if (silent_mode) {
@@ -60,7 +71,7 @@ void loop() {
         Serial.write("Ding.\r\n");
         last_tone_change = now;
         PORTB ^= PIN_BELL;
-        if (! bells--)
+        if ((--bells) < 0)
           state = 2;
       }
     }
@@ -69,7 +80,7 @@ void loop() {
 
     if (! (PINB & PIN_SIGNAL)) {
       Serial.write("Alarm deactivated.\r\n");
-      PORTB &= ~(PIN_LED);
+      PORTD &= ~(PIN_LED_ALARM);
       state = 0;
     }
   }
