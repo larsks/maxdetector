@@ -27,6 +27,9 @@
 #define BELL_INTERVAL_2 (1000U * 300U)  // 5 minutes
 #define COOLDOWN_INTERVAL 10000U        // 10 seconds
 
+#define BELL_OFF {PORTB |= PIN_BELL;}
+#define BELL_ON {PORTB &= ~(PIN_BELL);}
+
 #define STATE_WAIT_READY    0
 #define STATE_IDLE          1
 #define STATE_ALARM_1       2
@@ -55,7 +58,7 @@ void setup() {
     PORTB |= PIN_BUTTON|PIN_READY|PIN_SIGNAL;
 
     // ensure bell relay is off
-    PORTB |= PIN_BELL;
+    BELL_OFF;
 
     // ensure power LED is on, others are off
     PORTD = PIN_LED_POWER;
@@ -77,7 +80,7 @@ void loop() {
 
     // finish pending bell
     if ((now - last_bell) >= BELL_DURATION)
-        PORTB |= PIN_BELL;
+        BELL_OFF;
 
     // handle silent mode button
     if (now - last_update > 10) {
@@ -141,7 +144,7 @@ void loop() {
                 Serial.write("Ding.\r\n");
                 last_bell = now;
                 if (! silent_mode)
-                    PORTB &= ~(PIN_BELL);
+                    BELL_ON;
 
                 if (! (--bells)) {
                     Serial.write("Initial bell finished.\r\n");
@@ -164,7 +167,7 @@ void loop() {
                 Serial.write("Ding.\r\n");
                 last_bell = now;
                 if (! silent_mode)
-                    PORTB &= ~(PIN_BELL);
+                    BELL_ON;
             }
 
             break;
