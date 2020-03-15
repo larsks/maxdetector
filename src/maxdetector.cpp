@@ -24,8 +24,8 @@
 #define NUM_BELLS 2
 #define BELL_DURATION 500
 #define BELL_INTERVAL_1 1000U           // 1 second
-#define BELL_INTERVAL_2 (1000U * 300U)  // 5 minutes
-#define COOLDOWN_INTERVAL 10000U        // 10 seconds
+#define BELL_INTERVAL_2 (1000U * 300)   // 5 minutes
+#define COOLDOWN_INTERVAL (1000U * 60)  // 1 minute
 
 #define BELL_OFF {PORTB |= PIN_BELL;}
 #define BELL_ON {PORTB &= ~(PIN_BELL);}
