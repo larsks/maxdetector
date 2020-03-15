@@ -41,7 +41,6 @@
 typedef unsigned long time_t;
 
 uint8_t button_history = 0;
-int keydown            = 0;
 time_t last_update     = 0;
 time_t last_bell       = 0;
 time_t cooldown_start  = 0;
@@ -88,14 +87,12 @@ void loop() {
         button_history = button_history << 1;
         button_history |= (PINB & PIN_BUTTON) ? 1 : 0;
 
-        if ((button_history & BUTTON_MASK) == BUTTON_PRESSED) {
-            keydown = 1;
-        } else if (keydown && (button_history & BUTTON_MASK) == BUTTON_RELEASED) {
-            keydown = 0;
-            silent_mode = !silent_mode;
-            Serial.write("Toggle silent mode: ");
-            Serial.print(silent_mode);
-            Serial.write("\r\n");
+        if ((!silent_mode) && (button_history == BUTTON_DOWN)) {
+            silent_mode = 1;
+            Serial.write("Silent mode on.\r\n");
+        } else if ((silent_mode) && (button_history == BUTTON_UP)) {
+            silent_mode = 0;
+            Serial.write("Silent mode off.\r\n");
         }
     }
 
