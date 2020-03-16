@@ -45,7 +45,7 @@ time_t last_update     = 0;
 time_t last_bell       = 0;
 time_t cooldown_start  = 0;
 int silent_mode        = 0;
-int state              = 0;
+int state              = STATE_WAIT_READY;
 int bells              = NUM_BELLS;
 
 void setup() {
