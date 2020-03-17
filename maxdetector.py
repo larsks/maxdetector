@@ -72,18 +72,17 @@ class Monitor(object):
         found, reset the ALARM signal.
         '''
 
-        targets = [ubinascii.unhexlify(x) for x in self.targets]
         print('Start scanning t={}'.format(time.time()))
         nets = self.nic.scan()
-        self.last_scan = nets
+        self.last_scan = []
         for ssid, bssid, channel, rssi, authmode, hidden in nets:
-            ssid = ssid.decode()
-            _bssid = ubinascii.hexlify(bssid).decode()
+            bssid = ubinascii.hexlify(bssid)
+            self.last_scan.append((ssid, bssid, channel, rssi))
             print('Checking ssid "{}" bssid "{}" channel {} rssi {}'.format(
-                ssid, _bssid, channel, rssi
+                ssid, bssid, channel, rssi
             ))
-            if bssid in targets:
-                print('Found ssid "{}" bssid "{}"'.format(ssid, _bssid))
+            if bssid in self.targets:
+                print('Found ssid "{}" bssid "{}"'.format(ssid, bssid))
                 self.alarm.value(0)
                 self.flag_alarm = True
                 break
