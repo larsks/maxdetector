@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Max Detector</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+    table {{
+      border: thin solid black;
+      padding: 1ex;
+      margin-bottom: 2ex;
+    }}
+    </style>
+  </head>
+  <body>
+    <h1>Max Detector</h1>
+
+    <table>
+      <tr><td>Running</td><td>{running}</td></tr>
+      <tr><td>Alarm</td><td>{alarm}</td></tr>
+    </table>
+
+    <form action="/" method="post"/>
+      <input type="submit" name="action" value="Start"/>
+      <input type="submit" name="action" value="Stop"/>
+    </form>
+  </body>
+</html>

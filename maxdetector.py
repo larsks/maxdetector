@@ -20,12 +20,15 @@ class Monitor(object):
         self.alarm = Pin(pin_alarm, Pin.OUT)
         self.ready = Pin(pin_ready, Pin.OUT)
         self.scan_period = scan_period
+        self.last_scan = []
 
         # READY and ALARM are active low. Make sure they are
         # high when we start up.
         self.alarm.value(1)
         self.ready.value(1)
 
+        self.flag_running = False
+        self.flag_alarm = False
         self.t_scan = None
         self.nic = network.WLAN(network.STA_IF)
 
@@ -37,11 +40,13 @@ class Monitor(object):
         '''
 
         print('Starting...')
-        self.t_scan = Timer(-1)
-        self.t_scan.init(period=self.scan_period,
-                         mode=Timer.PERIODIC,
-                         callback=lambda t: self.scan())
+        if self.t_scan is None:
+            self.t_scan = Timer(-1)
+            self.t_scan.init(period=self.scan_period,
+                             mode=Timer.PERIODIC,
+                             callback=lambda t: self.scan())
         self.ready.value(0)
+        self.flag_running = True
         print('Started.')
 
     def stop(self):
@@ -51,9 +56,12 @@ class Monitor(object):
         '''
 
         print('Stopping...')
-        self.t_scan.deinit()
-        self.t_scan = None
+        if self.t_scan is not None:
+            self.t_scan.deinit()
+            self.t_scan = None
         self.ready.value(1)
+        self.flag_running = False
+        self.flag_alarm = False
         print('Stopped.')
 
     def scan(self):
@@ -67,6 +75,7 @@ class Monitor(object):
         targets = [ubinascii.unhexlify(x) for x in self.targets]
         print('Start scanning t={}'.format(time.time()))
         nets = self.nic.scan()
+        self.last_scan = nets
         for ssid, bssid, channel, rssi, authmode, hidden in nets:
             ssid = ssid.decode()
             _bssid = ubinascii.hexlify(bssid).decode()
@@ -76,8 +85,10 @@ class Monitor(object):
             if bssid in targets:
                 print('Found ssid "{}" bssid "{}"'.format(ssid, _bssid))
                 self.alarm.value(0)
+                self.flag_alarm = True
                 break
         else:
             self.alarm.value(1)
+            self.flag_alarm = False
 
         print('Finished scanning t={}'.format(time.time()))
