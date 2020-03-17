@@ -16,7 +16,7 @@ class Monitor(object):
                  pin_alarm=DEFAULT_PIN_ALARM,
                  scan_period=DEFAULT_SCAN_PERIOD):
 
-        self.targets = targets
+        self.targets = set(targets)
         self.alarm = Pin(pin_alarm, Pin.OUT)
         self.ready = Pin(pin_ready, Pin.OUT)
         self.scan_period = scan_period

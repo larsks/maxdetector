@@ -12,13 +12,15 @@ def parse_qs(qs):
 
 class API(object):
     def api_list_targets(self, client, method, path, params, mo):
-        return self.mdo.targets
+        return list(self.mdo.targets)
 
     def api_add_target(self, client, method, path, params, mo):
-        ...
+        self.mdo.targets.add(params[b'target'])
+        return list(self.mdo.targets)
 
     def api_delete_target(self, client, method, path, params, mo):
-        ...
+        self.mdo.targets.remove(mo.group(1))
+        return list(self.mdo.targets)
 
     def api_alarm_status(self, client, method, path, params, mo):
         return {'alarm': self.mdo.flag_alarm}
