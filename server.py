@@ -234,11 +234,15 @@ class Server(API):
             client, addr = s.accept()
             print('DEBUG: client connected from', addr)
 
-            req = self.read_request(client, addr)
-            print('{} - - [{}] "{} {} {}"'.format(
-                addr[0], time.time(), req.method, req.path, req.version))
-            res = self.handle_request(client, req)
-            self.handle_response(client, res, req)
+            try:
+                req = self.read_request(client, addr)
+                print('{} - - [{}] "{} {} {}"'.format(
+                    addr[0], time.time(), req.method, req.path, req.version))
+                res = self.handle_request(client, req)
+                self.handle_response(client, res, req)
+            except Exception as err:
+                print('ERROR: Failed handling request from {}: {}'.format(
+                    addr[0], err))
 
             print('closing connection')
             client.close()
