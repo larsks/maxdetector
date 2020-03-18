@@ -3,25 +3,23 @@
   <head>
     <title>Max Detector</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style type="text/css">
-    table {{
-      border: thin solid black;
-      padding: 1ex;
-      margin-bottom: 2ex;
-    }}
-    </style>
+    <link rel="stylesheet" href="/static/style.css"></link>
   </head>
   <body>
     <h1>Max Detector</h1>
 
+    <img src="/static/max.jpg">
+
     <table>
-      <tr><td>Running</td><td>{running}</td></tr>
-      <tr><td>Alarm</td><td>{alarm}</td></tr>
+      <tr><td>Running</td><td><span id="running">false</span></td></tr>
+      <tr><td>Alarm</td><td><span id="alarm">false</span></td></tr>
     </table>
 
-    <form action="/" method="post"/>
-      <input type="submit" name="action" value="Start"/>
-      <input type="submit" name="action" value="Stop"/>
-    </form>
+    <p>
+      <button id="button_start">Start</button>
+      <button id="button_stop">Stop</button>
+    </p>
+
+    <script src="/static/md.js"></script>
   </body>
 </html>
