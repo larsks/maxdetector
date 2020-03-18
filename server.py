@@ -8,19 +8,77 @@ import time
 from ucollections import namedtuple
 
 buf = bytearray(1024)
-extensions = {
+
+EXTENSIONS = {
     'png': 'image/png',
     'jpg': 'image/jpeg',
     'gif': 'image/gif',
     'html': 'text/html',
-    'htm': 'text/html',
     'txt': 'text/plain',
-    'md': 'text/plain',
-    'tiff': 'image/tiff',
-    'tif': 'image/tiff',
     'ico': 'image/x-icon',
     'css': 'text/css',
     'js': 'application/javascript',
+}
+
+STATUS_MESSAGE = {
+    100: 'CONTINUE',
+    101: 'SWITCHING PROTOCOLS',
+    102: 'PROCESSING',
+    200: 'OK',
+    201: 'CREATED',
+    202: 'ACCEPTED',
+    203: 'NON AUTHORITATIVE INFORMATION',
+    204: 'NO CONTENT',
+    205: 'RESET CONTENT',
+    206: 'PARTIAL CONTENT',
+    207: 'MULTI STATUS',
+    208: 'ALREADY REPORTED',
+    226: 'IM USED',
+    300: 'MULTIPLE CHOICES',
+    301: 'MOVED PERMANENTLY',
+    302: 'FOUND',
+    303: 'SEE OTHER',
+    304: 'NOT MODIFIED',
+    305: 'USE PROXY',
+    307: 'TEMPORARY REDIRECT',
+    308: 'PERMANENT REDIRECT',
+    400: 'BAD REQUEST',
+    401: 'UNAUTHORIZED',
+    402: 'PAYMENT REQUIRED',
+    403: 'FORBIDDEN',
+    404: 'NOT FOUND',
+    405: 'METHOD NOT ALLOWED',
+    406: 'NOT ACCEPTABLE',
+    407: 'PROXY AUTHENTICATION REQUIRED',
+    408: 'REQUEST TIMEOUT',
+    409: 'CONFLICT',
+    410: 'GONE',
+    411: 'LENGTH REQUIRED',
+    412: 'PRECONDITION FAILED',
+    413: 'REQUEST ENTITY TOO LARGE',
+    414: 'REQUEST URI TOO LONG',
+    415: 'UNSUPPORTED MEDIA TYPE',
+    416: 'REQUESTED RANGE NOT SATISFIABLE',
+    417: 'EXPECTATION FAILED',
+    421: 'MISDIRECTED REQUEST',
+    422: 'UNPROCESSABLE ENTITY',
+    423: 'LOCKED',
+    424: 'FAILED DEPENDENCY',
+    426: 'UPGRADE REQUIRED',
+    428: 'PRECONDITION REQUIRED',
+    429: 'TOO MANY REQUESTS',
+    431: 'REQUEST HEADER FIELDS TOO LARGE',
+    500: 'INTERNAL SERVER ERROR',
+    501: 'NOT IMPLEMENTED',
+    502: 'BAD GATEWAY',
+    503: 'SERVICE UNAVAILABLE',
+    504: 'GATEWAY TIMEOUT',
+    505: 'HTTP VERSION NOT SUPPORTED',
+    506: 'VARIANT ALSO NEGOTIATES',
+    507: 'INSUFFICIENT STORAGE',
+    508: 'LOOP DETECTED',
+    510: 'NOT EXTENDED',
+    511: 'NETWORK AUTHENTICATION REQUIRED',
 }
 
 Request = namedtuple('Request', ['method', 'path', 'version', 'params'])
@@ -37,7 +95,7 @@ def map_content_type(filename):
     except IndexError:
         ext = None
 
-    return extensions.get(ext, 'application/octet-stream')
+    return EXTENSIONS.get(ext, 'application/octet-stream')
 
 
 class API(object):
@@ -84,18 +142,17 @@ class API(object):
         content_type = map_content_type(filename)
         path = '/static/{}'.format(filename)
         print('static', path)
-        return Response('200 OK', content_type, open(path))
+        try:
+            return Response(200, content_type, open(path))
+        except OSError:
+            return Response(404, 'text/html', 'Not found.')
 
 
 class Server(API):
     def __init__(self, mdo, port=80):
         self.mdo = mdo
+        self.port = port
         self.routes = []
-
-        s = socket.socket()
-        s.bind(('', port))
-        s.listen(5)
-        self.s = s
 
         self.register('/api/target',
                       self.api_list_targets, method='GET')
@@ -146,12 +203,15 @@ class Server(API):
 
         res = route['handler'](client, req, match)
         if not isinstance(res, Response):
-            res = Response('200 OK', None, res)
+            res = Response(200, None, res)
 
         return res
 
     def handle_response(self, client, res, req):
-        client.write('HTTP/1.1 {}\r\n'.format(res.status_code))
+        client.write('HTTP/1.1 {} {}\r\n'.format(
+            res.status_code,
+            STATUS_MESSAGE.get(res.status_code, 'UNKNOWN')
+        ))
 
         if isinstance(res.content, (dict, list)):
             client.write('Content-type: {}\r\n\r\n'.format(
@@ -184,8 +244,8 @@ class Server(API):
 
         print('sent {} bytes'.format(size))
 
-    def index(self, client, *args):
-        return open('ui.html')
+    def index(self, *args):
+        return Response(200, 'text/html', open('ui.html'))
 
     def read_request(self, client, addr):
         state = 0
@@ -222,7 +282,20 @@ class Server(API):
         return Request(method, path, version, params)
 
     def start(self):
-        s = self.s
+        s = socket.socket()
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(('', self.port))
+        s.listen(5)
+        self.sock = s
+
+        try:
+            self.loop()
+        finally:
+            self.stop()
+
+    def loop(self):
+        s = self.sock
+
         poll = select.poll()
         poll.register(s, select.POLLIN)
 
@@ -232,20 +305,25 @@ class Server(API):
                 continue
 
             client, addr = s.accept()
-            print('DEBUG: client connected from', addr)
+            print('Client connected from {}.'.format(addr[0]))
 
             try:
                 req = self.read_request(client, addr)
-                print('{} - - [{}] "{} {} {}"'.format(
-                    addr[0], time.time(), req.method, req.path, req.version))
                 res = self.handle_request(client, req)
+                print('{} - - [{}] "{} {} {}" {} -'.format(
+                    addr[0], time.time(), req.method,
+                    req.path, req.version, res.status_code
+                ))
                 self.handle_response(client, res, req)
             except Exception as err:
                 print('ERROR: Failed handling request from {}: {}'.format(
                     addr[0], err))
 
-            print('closing connection')
+            print('Closing connection from {}'.format(addr[0]))
             client.close()
 
     def stop(self):
-        self.s.close()
+        if self.sock is not None:
+            print('Closing server socket.')
+            self.sock.close()
+        self.sock = None
