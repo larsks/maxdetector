@@ -169,31 +169,33 @@ class Server(API):
         return res
 
     def handle_response(self, client, res, req):
-        client.write(
+        nb = client.write(
             "HTTP/1.1 {} {}\r\n".format(
                 res.status_code, STATUS_MESSAGE.get(res.status_code, "UNKNOWN")
             )
         )
 
         if isinstance(res.content, (dict, list)):
-            client.write(
+            nb += client.write(
                 "Content-type: {}\r\n\r\n".format(
                     res.content_type or "application/json"
                 )
             )
-            client.write(json.dumps(res.content))
+            nb += client.write(json.dumps(res.content))
         elif res.content is None:
             pass
         elif hasattr(res.content, "read"):
-            client.write(
+            nb += client.write(
                 "Content-type: {}\r\n\r\n".format(res.content_type or "text/html")
             )
-            self.send_file(client, res.content)
+            nb += self.send_file(client, res.content)
         else:
-            client.write(
+            nb += client.write(
                 "Content-type: {}\r\n\r\n".format(res.content_type or "text/html")
             )
-            client.write(res.content)
+            nb += client.write(res.content)
+
+        return nb
 
     def send_file(self, client, fd):
         size = 0
@@ -205,8 +207,7 @@ class Server(API):
             client.write(buf[:nb])
 
         fd.close()
-
-        print("sent {} bytes".format(size))
+        return size
 
     def index(self, *args):
         return Response(200, "text/html", open("ui.html"))
@@ -274,17 +275,18 @@ class Server(API):
             try:
                 req = self.read_request(client, addr)
                 res = self.handle_request(client, req)
+                size = self.handle_response(client, res, req)
                 print(
-                    '{} - - [{}] "{} {} {}" {} -'.format(
+                    '{} - - [{}] "{} {} {}" {} {}'.format(
                         addr[0],
                         time.time(),
                         req.method,
                         req.path,
                         req.version,
                         res.status_code,
+                        size,
                     )
                 )
-                self.handle_response(client, res, req)
             except Exception as err:
                 print("ERROR: Failed handling request from {}: {}".format(addr[0], err))
 
