@@ -89,7 +89,7 @@ class API(object):
         return {"alarm": self.mdo.flag_alarm}
 
     def api_scan_results(self, client, req, match):
-        return self.mdo.last_scan
+        return self.mdo.scan_results
 
     def api_scan_status(self, client, req, match):
         return {"running": self.mdo.flag_running}
