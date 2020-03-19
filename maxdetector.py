@@ -23,12 +23,11 @@ class Monitor(object):
     ):
 
         self.targets = set(targets or [])
-        self.active_targets = []
         self.targets_file = targets_file
         self.alarm = Pin(pin_alarm, Pin.OUT)
         self.ready = Pin(pin_ready, Pin.OUT)
         self.scan_period = scan_period
-        self.last_scan = []
+        self.scan_results = []
 
         # READY and ALARM are active low. Make sure they are
         # high when we start up.
@@ -98,7 +97,6 @@ class Monitor(object):
         self.alarm.value(1)
         self.flag_running = False
         self.flag_alarm = False
-        self.active_targets = []
         print("Stopped.")
 
     def scan(self):
@@ -110,14 +108,14 @@ class Monitor(object):
         """
 
         print("Start scanning t={}".format(time.time()))
-        nets = self.nic.scan()
-        self.last_scan = []
+        self.scan_results = []
         found = False
-        self.active_targets = []
+
+        nets = self.nic.scan()
         for ssid, bssid, channel, rssi, authmode, hidden in nets:
             ssid = ssid.decode()
             bssid = ubinascii.hexlify(bssid).decode()
-            self.last_scan.append((ssid, bssid, channel, rssi))
+            network = (ssid, bssid, channel, rssi, authmode, hidden)
             print(
                 'Checking ssid "{}" bssid "{}" channel {} rssi {}'.format(
                     ssid, bssid, channel, rssi
@@ -126,8 +124,9 @@ class Monitor(object):
             if bssid in self.targets:
                 print('Found ssid "{}" bssid "{}"'.format(ssid, bssid))
                 found = True
-                self.active_targets.append((ssid, bssid, channel,
-                                            rssi, authmode, hidden))
+                self.scan_results.append((True, network))
+            else:
+                self.scan_results.append((False, network))
 
         if found:
             self.alarm.value(0)
