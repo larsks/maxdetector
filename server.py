@@ -119,17 +119,17 @@ class Server(API):
         self.port = port
         self.routes = []
 
-        self.register("/api/target", self.api_list_targets, method="GET")
-        self.register("/api/target", self.api_add_target, method="POST")
-        self.register("/api/target/([^/]*)", self.api_delete_target, method="DELETE")
-        self.register("/api/status", self.api_status)
-        self.register("/api/alarm", self.api_alarm_status)
-        self.register("/api/scan/results", self.api_scan_results)
-        self.register("/api/scan/start", self.api_scan_start)
-        self.register("/api/scan/stop", self.api_scan_stop)
-        self.register("/api/scan", self.api_scan_status)
-        self.register("/api/memory", self.api_memory)
-        self.register("/static/(.*)", self.static_content)
+        self.register("/api/target$", self.api_list_targets, method="GET")
+        self.register("/api/target$", self.api_add_target, method="POST")
+        self.register("/api/target/([^/]*)$", self.api_delete_target, method="DELETE")
+        self.register("/api/status$", self.api_status)
+        self.register("/api/alarm$", self.api_alarm_status)
+        self.register("/api/scan/results$", self.api_scan_results)
+        self.register("/api/scan/start$", self.api_scan_start)
+        self.register("/api/scan/stop$", self.api_scan_stop)
+        self.register("/api/scan$", self.api_scan_status)
+        self.register("/api/memory$", self.api_memory)
+        self.register("/static/(.*)$", self.static_content)
         self.register("/$", self.index)
 
     def register(self, path, handler, method="GET"):
