@@ -97,6 +97,7 @@ class Monitor(object):
         self.ready.value(1)
         self.flag_running = False
         self.flag_alarm = False
+        self.active_targets = []
         print("Stopped.")
 
     def scan(self):
@@ -110,8 +111,11 @@ class Monitor(object):
         print("Start scanning t={}".format(time.time()))
         nets = self.nic.scan()
         self.last_scan = []
+        found = False
+        self.active_targets = []
         for ssid, bssid, channel, rssi, authmode, hidden in nets:
-            bssid = ubinascii.hexlify(bssid)
+            ssid = ssid.decode()
+            bssid = ubinascii.hexlify(bssid).decode()
             self.last_scan.append((ssid, bssid, channel, rssi))
             print(
                 'Checking ssid "{}" bssid "{}" channel {} rssi {}'.format(
@@ -120,9 +124,13 @@ class Monitor(object):
             )
             if bssid in self.targets:
                 print('Found ssid "{}" bssid "{}"'.format(ssid, bssid))
-                self.alarm.value(0)
-                self.flag_alarm = True
-                break
+                found = True
+                self.active_targets.append((ssid, bssid, channel,
+                                            rssi, authmode, hidden))
+
+        if found:
+            self.alarm.value(0)
+            self.flag_alarm = True
         else:
             self.alarm.value(1)
             self.flag_alarm = False

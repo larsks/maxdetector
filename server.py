@@ -219,13 +219,18 @@ class Server(API):
     def read_request(self, client, addr):
         state = 0
         clen = None
-        params = None
+        params = {}
 
         while True:
             if state == 0:
                 # Read request line
                 line = client.readline()
                 method, path, version = line.decode().split()
+                try:
+                    path, qs = path.split('?', 1)
+                    params.update(parse_qs(qs))
+                except ValueError:
+                    pass
                 state = 1
             elif state == 1:
                 # Read headers
@@ -245,7 +250,7 @@ class Server(API):
             elif state == 2:
                 # Read request body
                 content = client.read(clen)
-                params = parse_qs(content.decode())
+                params.update(parse_qs(content.decode()))
                 break
 
         return Request(method, path, version, params)
