@@ -5,9 +5,16 @@ table {
 }
 
 #message {
-    display: none;
     padding: 1ex;
     background: #f2ed46;
     border: thin solid black;
     margin-bottom: 1ex;
+}
+
+.target {
+    background-color: #ff0000;
+}
+
+.hidden {
+    display: none;
 }
