@@ -65,20 +65,24 @@ class API(object):
         return {"free": gc.mem_free(), "allocated": gc.mem_alloc()}
 
     def api_list_targets(self, client, req, match):
-        return list(self.mdo.targets)
+        if req.params.get('active') in ['1', 'true']:
+            return list(self.mdo.active_targets)
+        else:
+            return list(self.mdo.targets)
 
     def api_add_target(self, client, req, match):
-        self.mdo.targets.add(req.params["target"])
+        self.mdo.add_target(req.params["target"])
         return list(self.mdo.targets)
 
     def api_delete_target(self, client, req, match):
-        self.mdo.targets.remove(match.group(1))
+        self.mdo.remove_target(match.group(1))
         return list(self.mdo.targets)
 
     def api_status(self, client, req, match):
         return {
             "alarm": self.mdo.flag_alarm,
             "running": self.mdo.flag_running,
+            "active_targets": self.mdo.active_targets,
         }
 
     def api_alarm_status(self, client, req, match):
