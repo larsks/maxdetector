@@ -95,6 +95,7 @@ class Monitor(object):
             self.t_scan.deinit()
             self.t_scan = None
         self.ready.value(1)
+        self.alarm.value(1)
         self.flag_running = False
         self.flag_alarm = False
         self.active_targets = []
