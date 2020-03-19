@@ -1,3 +1,4 @@
+import json
 import network
 import time
 import ubinascii
@@ -8,18 +9,22 @@ from machine import Timer
 DEFAULT_PIN_READY = 4  # D2
 DEFAULT_PIN_ALARM = 5  # D1
 DEFAULT_SCAN_PERIOD = 10000
+DEFAULT_TARGETS_FILE = "targets.json"
 
 
 class Monitor(object):
     def __init__(
         self,
-        targets,
+        targets=None,
+        targets_file=DEFAULT_TARGETS_FILE,
         pin_ready=DEFAULT_PIN_READY,
         pin_alarm=DEFAULT_PIN_ALARM,
         scan_period=DEFAULT_SCAN_PERIOD,
     ):
 
-        self.targets = set(targets)
+        self.targets = set(targets or [])
+        self.active_targets = []
+        self.targets_file = targets_file
         self.alarm = Pin(pin_alarm, Pin.OUT)
         self.ready = Pin(pin_ready, Pin.OUT)
         self.scan_period = scan_period
@@ -34,6 +39,31 @@ class Monitor(object):
         self.flag_alarm = False
         self.t_scan = None
         self.nic = network.WLAN(network.STA_IF)
+
+        if self.targets_file:
+            self.load_targets()
+
+        self.store_targets()
+
+    def load_targets(self):
+        try:
+            with open(self.targets_file) as fd:
+                targets = json.load(fd)
+                self.targets = set(targets)
+        except OSError as err:
+            print('ERROR: failed to load targets: {}'.format(err))
+
+    def store_targets(self):
+        with open(self.targets_file, 'w') as fd:
+            json.dump(list(self.targets), fd)
+
+    def add_target(self, target):
+        self.targets.add(target)
+        self.store_targets()
+
+    def remove_target(self, target):
+        self.targets.remove(target)
+        self.store_targets()
 
     def start(self):
         """Start the scanning task.
