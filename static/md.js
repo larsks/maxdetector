@@ -5,6 +5,8 @@ var button_stop = document.getElementById("button_stop");
 var message = document.getElementById("message");
 var network_table = document.getElementById("t_network");
 var network_section = document.getElementById("s_network");
+var s_target = document.getElementById("s_target");
+var t_target = document.getElementById("t_target");
 
 function show_message(msg) {
     message.innerHTML = msg;
@@ -15,101 +17,140 @@ function clear_message() {
     message.style.display = "none";
 }
 
-function status_failed(xhr, status) {
-    show_message("Failed to get status from detector.");
-}
-
 function clear_network_table() {
     network_table.children[1].innerHTML = "";
 }
 
 function update_page() {
-    var xhr_status = new XMLHttpRequest();
-    var xhr_networks = new XMLHttpRequest();
+    Promise.all([
+        // Update running and alarm status
+        fetch('/api/status')
+        .then((response) => {
+            return response.json();
+        })
+        .then((data) => {
+            clear_message();
+            running.innerHTML = data.running;
+            alarm.innerHTML = data.alarm;
+            return true;
+        })
+        .catch((error) => {
+            console.log("failed to get status");
+        }),
 
-    xhr_status.onreadystatechange = function() {
-        if (xhr_status.readyState == XMLHttpRequest.DONE) {
-            if (xhr_status.status == 200) {
-                var status = JSON.parse(this.responseText);
-                clear_message();
-                running.innerHTML = status.running;
-                alarm.innerHTML = status.alarm;
-            } else {
-                status_failed(xhr_status, xhr_status.status);
-            }
-        }
-    }
-    xhr_status.onerror = function() {
-        xhr_status_failed(xhr_status, xhr_status.status);
-    }
+        // Get list of visible networks
+        fetch('/api/scan/result')
+        .then((response) => {
+            return response.json();
+        })
+        .then((networks) => {
+            var tbody = t_network.children[1];
+            var i = 0;
+            tbody.innerHTML = '';
 
-    xhr_networks.onreadystatechange = function() {
-        if (xhr_networks.readyState == XMLHttpRequest.DONE) {
-            if (xhr_networks.status == 200) {
-                var networks = JSON.parse(this.responseText);
-                clear_network_table();
-                tbody = network_table.children[1];
-
-                if (networks.length == 0)
-                    network_section.style.display = "none";
-                else
-                    network_section.style.display = "block";
-
-                for (i=0; i < networks.length; i++) {
-                    var row = tbody.insertRow(i);
-
-                    for (j=0; j < networks[i][1].length; j++) {
-                        c = row.insertCell(j);
-                        c.innerHTML = networks[i][1][j];
-                    }
-
-                    if (networks[i][0])
+            if (networks.length > 0) {
+                networks.forEach((network) => {
+                    var row = tbody.insertRow(i++);
+                    var j = 0;
+                    if (network[0])
                         row.setAttribute("class", "target");
-                }
+
+                    network[1].forEach((item) => {
+                        var cell = row.insertCell(j++);
+                        cell.innerHTML = item;
+                    });
+
+                    var action = row.insertCell(j++);
+                    if (! network[0]) {
+                        action.innerHTML="<button class='action'>+</button>";
+                        action.addEventListener("click", (event) => {
+                            fetch("/api/target", {
+                                method: "POST",
+                                body: `target=${network[1][1]}`
+                            });
+                            update_page();
+                        });
+                    } else {
+                        action.innerHTML="<button class='action'>-</button>";
+                        action.addEventListener("click", (event) => {
+                            fetch(`/api/target/${network[1][1]}`, {
+                                method: "DELETE"
+                            });
+                            update_page();
+                        });
+                    }
+                });
+                s_network.style.display = "block";
             } else {
-                clear_network_table();
+                s_network.style.display = "none";
             }
-        }
-    }
-    xhr_networks.onerror = function() {
-        xhr_networks_failed(xhr_networks, xhr_networks.status);
-    }
 
-    // Needs to be > 2 seconds because that's approximately how
-    // long a wifi scan takes.
-    xhr_status.timeout = 5000;
-    xhr_networks.timeout = 5000;
+            return true;
+        })
+        .catch((error) => {
+            console.log("failed to get list of visible networks");
+        }),
 
-    xhr_status.open("GET", "/api/status");
-    xhr_status.send();
+        // Get list of targets
+        fetch('/api/target')
+        .then((response) => {
+            return response.json();
+        })
+        .then((targets) => {
+            var tbody = t_target.children[1];
+            tbody.innerHTML = '';
 
-    xhr_networks.open("GET", "/api/scan/result");
-    xhr_networks.send();
+            if (targets.length > 0) {
+                s_target.style.display = "block";
+                var i = 0;
+                targets.forEach((target) => {
+                    var row = tbody.insertRow(i++);
+                    var cell = row.insertCell(0);
+                    cell.innerHTML = target;
+                    cell = row.insertCell(1);
+                    cell.innerHTML="<button class='action'>-</button>";
+                    cell.addEventListener("click", (event) => {
+                        fetch(`/api/target/${target}`, {
+                            method: "DELETE"
+                        });
+                        update_page();
+                    });
+                });
+            } else {
+                s_target.style.display = "none";
+            }
+            return true;
+        })
+        .catch((error) => {
+            console.log("failed to get list of targets");
+        }),
+    ])
+    .then((values) => {
+        var error = false;
+        values.forEach((result) => {
+            if (! result) error = true;
+        })
+
+        if (error)
+            show_message("Failed to communicate with detector.");
+        else
+            clear_message();
+    })
 }
 
 button_start.addEventListener("click", function () {
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == XMLHttpRequest.DONE) {
+    fetch('/api/scan/start')
+        .then((response) => {
             update_page();
-        }
-    }
-
-    xhr.open("GET", "/api/scan/start");
-    xhr.send();
-}, false);
+        })
+});
 
 button_stop.addEventListener("click", function () {
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == XMLHttpRequest.DONE) {
+    fetch('/api/scan/stop')
+        .then((response) => {
             update_page();
-        }
-    }
-
-    xhr.open("GET", "/api/scan/stop");
-    xhr.send();
-}, false);
+        })
+});
 
 var period = setInterval(update_page, 10000);
 update_page();
