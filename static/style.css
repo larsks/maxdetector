@@ -1,7 +1,17 @@
+body {
+    width: 100%;
+    max-width: 40em;
+}
+
 table {
     border: thin solid black;
     padding: 1ex;
     margin-bottom: 2ex;
+    width: 100%;
+}
+
+tr,td,th {
+    text-align: left;
 }
 
 #message {
@@ -17,4 +27,12 @@ table {
 
 .hidden {
     display: none;
+}
+
+td {
+    padding: 5px;
+}
+
+.action {
+    width: 5ex;
 }
