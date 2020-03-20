@@ -1,10 +1,9 @@
 var running = document.getElementById("running");
 var alarm = document.getElementById("alarm");
-var button_start = document.getElementById("button_start");
-var button_stop = document.getElementById("button_stop");
 var message = document.getElementById("message");
-var network_table = document.getElementById("t_network");
-var network_section = document.getElementById("s_network");
+
+var t_network = document.getElementById("t_network");
+var s_network = document.getElementById("s_network");
 var s_target = document.getElementById("s_target");
 var t_target = document.getElementById("t_target");
 
@@ -15,10 +14,6 @@ function show_message(msg) {
 
 function clear_message() {
     message.style.display = "none";
-}
-
-function clear_network_table() {
-    network_table.children[1].innerHTML = "";
 }
 
 function update_page() {
@@ -60,6 +55,8 @@ function update_page() {
                         cell.innerHTML = item;
                     });
 
+                    // Adds "+" or "-" buttons to add/remove listed network
+                    // from the list of targets.
                     var action = row.insertCell(j++);
                     if (! network[0]) {
                         action.innerHTML="<button class='action'>+</button>";
@@ -107,6 +104,8 @@ function update_page() {
                     var row = tbody.insertRow(i++);
                     var cell = row.insertCell(0);
                     cell.innerHTML = target;
+
+                    // Add "-" button for removing target.
                     cell = row.insertCell(1);
                     cell.innerHTML="<button class='action'>-</button>";
                     cell.addEventListener("click", (event) => {
@@ -125,6 +124,9 @@ function update_page() {
             console.log("failed to get list of targets");
         }),
     ])
+
+    // see if any of the above operations failed and if so
+    // show a message in the ui
     .then((values) => {
         var error = false;
         values.forEach((result) => {
@@ -138,14 +140,14 @@ function update_page() {
     })
 }
 
-button_start.addEventListener("click", function () {
+document.getElementById("button_start").addEventListener("click", function () {
     fetch('/api/scan/start')
         .then((response) => {
             update_page();
         })
 });
 
-button_stop.addEventListener("click", function () {
+document.getElementById("button_stop").addEventListener("click", function () {
     fetch('/api/scan/stop')
         .then((response) => {
             update_page();

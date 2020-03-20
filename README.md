@@ -1,18 +1,20 @@
 # maxdetector
 
 This is the software part of a project that rings a bell whenever a specific
-WiFi hotspot comes online.  The software consists of three parts:
+WiFi hotspot comes online.  The software consists of several components:
 
 - `maxdetector.py` is [MicroPython][] code that runs on an ESP8266, scans
   for the target networks, and raises a signal when it founds a target
   BSSID.
 
-- `server.py` is [MicroPython][] that provides a web interface for 
+- `server.py` is [MicroPython][] code that provides a web interface for 
   managing maxdetector from a browser.
+
+- `static/md.js` is the Javascript responsible for the dynamic we ui.
 
 - `src/maxdetector.cpp` is Arduino code (structured to compile with
   [Platformio][]) that watches for the signal from the ESP8266 and takes
-  care of ringing a bell and implementing other UI elements.
+  care of ringing a bell and implementing other physical UI elements.
 
 [micropython]: https://micropython.org/
 [platformio]: https://platformio.org/
@@ -45,16 +47,25 @@ import gc
 import maxdetector
 import server
 
-target_bssid = b'c0eefbe57190'
-
 esp.osdebug(None)
 gc.collect()
 
-m = maxdetector.Monitor([target_bssid])
+m = maxdetector.Monitor()
 m.start()
 
 s = server.Server(m)
 s.start()
+```
+
+You can configure target networks using the API, or create a file
+named `targets.json` on your device with a list of BSSIDs to monitor.
+E.g:
+
+```
+[
+  "c0ffee123456",
+  "cafe87654321",
+]
 ```
 
 ### Installing the Arduino component
@@ -77,10 +88,25 @@ If you're Uno isn't on `/dev/ttyACM0` you will need to update the
 ## Accessing the maxdetector web UI
 
 In order to access the web interface you will need to configure the WiFi 
-connection on your ESP8266. If you point your browser at your device's address,
-you should see something like:
+connection on your ESP8266. You can find instructions for doing this
+in the MicroPython "[Network basics][]" documentation.
 
-![maxdetector ui](maxdetector-ui.png)
+[network basics]: http://docs.micropython.org/en/v1.9.3/esp8266/esp8266/tutorial/network_basics.html
+
+## API
+
+maxdetector has a simple HTTP API:
+
+- `GET /api/alarm`
+- `GET /api/memory`
+- `GET /api/scan`
+- `GET /api/scan/result`
+- `GET /api/scan/start`
+- `GET /api/scan/stop`
+- `GET /api/status`
+- `GET /api/target`
+- `POST /api/target`
+- `DELETE /api/target/<bssid>`
 
 ## Simulation
 
