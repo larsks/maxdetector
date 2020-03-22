@@ -1,6 +1,7 @@
 import gc
 import ifconfig
 import json
+import machine
 import re
 import select
 import socket
@@ -123,6 +124,17 @@ class API(object):
 
         return Response(200, "text/html", "Reconfiguring wifi")
 
+    def api_reset_post(self):
+        print("Resetting.")
+        machine.reset()
+
+    def api_reset(self, client, req, match):
+        t = Timer(-1)
+        t.init(period=1000, mode=Timer.ONE_SHOT,
+               callback=lambda t: self.api_reset_post())
+
+        return Response(200, "text/html", "Resetting")
+
 
 class Server(API):
     def __init__(self, mdo, port=80):
@@ -140,6 +152,7 @@ class Server(API):
         self.register("/api/scan/stop$", self.api_scan_stop)
         self.register("/api/memory$", self.api_memory)
         self.register("/api/wifi", self.api_wifi, method="POST")
+        self.register("/api/reset", self.api_reset)
         self.register("/static/(.*)$", self.static_content)
         self.register("/$", self.index)
 
