@@ -1,10 +1,12 @@
 import gc
+import ifconfig
 import json
 import re
 import select
 import socket
 import time
 
+from machine import Timer
 from ucollections import namedtuple
 
 buf = bytearray(1024)
@@ -81,14 +83,8 @@ class API(object):
             "running": self.mdo.flag_running,
         }
 
-    def api_alarm_status(self, client, req, match):
-        return {"alarm": self.mdo.flag_alarm}
-
     def api_scan_results(self, client, req, match):
         return self.mdo.scan_results
-
-    def api_scan_status(self, client, req, match):
-        return {"running": self.mdo.flag_running}
 
     def api_scan_start(self, client, req, match):
         self.mdo.start()
@@ -108,23 +104,42 @@ class API(object):
         except OSError:
             return Response(404, "text/html", "Not found.")
 
+    def api_wifi_post(self, ssid, password):
+        print("api wifi post")
+        ifconfig.set_credentials(
+            ssid=ssid,
+            password=password,
+        )
+
+        ifconfig.connect(wait=True)
+
+    def api_wifi(self, client, req, match):
+        ssid = req.params["ssid"]
+        password = req.params["password"]
+
+        t = Timer(-1)
+        t.init(period=1000, mode=Timer.ONE_SHOT,
+               callback=lambda t: self.api_wifi_post(ssid, password))
+
+        return Response(200, "text/html", "Reconfiguring wifi")
+
 
 class Server(API):
     def __init__(self, mdo, port=80):
         self.mdo = mdo
         self.port = port
         self.routes = []
+        self.running = False
 
         self.register("/api/target$", self.api_list_targets, method="GET")
         self.register("/api/target$", self.api_add_target, method="POST")
         self.register("/api/target/([^/]*)$", self.api_delete_target, method="DELETE")
         self.register("/api/status$", self.api_status)
-        self.register("/api/alarm$", self.api_alarm_status)
         self.register("/api/scan/results?$", self.api_scan_results)
         self.register("/api/scan/start$", self.api_scan_start)
         self.register("/api/scan/stop$", self.api_scan_stop)
-        self.register("/api/scan$", self.api_scan_status)
         self.register("/api/memory$", self.api_memory)
+        self.register("/api/wifi", self.api_wifi, method="POST")
         self.register("/static/(.*)$", self.static_content)
         self.register("/$", self.index)
 
@@ -257,6 +272,8 @@ class Server(API):
         s.bind(("", self.port))
         s.listen(5)
         self.sock = s
+        self.running = True
+        print('Starting server.')
 
         try:
             self.loop()
@@ -303,3 +320,4 @@ class Server(API):
             print("Closing server socket.")
             self.sock.close()
         self.sock = None
+        self.running = False

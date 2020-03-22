@@ -71,7 +71,7 @@ class Monitor(object):
         to run every self.scan_period seconds (10 by default).
         """
 
-        print("Starting...")
+        print("Starting scan task...")
         if self.t_scan is None:
             self.t_scan = Timer(-1)
             self.t_scan.init(
@@ -81,7 +81,7 @@ class Monitor(object):
             )
         self.ready.value(0)
         self.flag_running = True
-        print("Started.")
+        print("Finished starting scan task.")
 
     def stop(self):
         """Stop the scanning task.
@@ -89,7 +89,7 @@ class Monitor(object):
         Cancel the scanning task and reset the READY signal.
         """
 
-        print("Stopping...")
+        print("Stopping scan task...")
         if self.t_scan is not None:
             self.t_scan.deinit()
             self.t_scan = None
@@ -97,7 +97,7 @@ class Monitor(object):
         self.alarm.value(1)
         self.flag_running = False
         self.flag_alarm = False
-        print("Stopped.")
+        print("Finished stopping scan task.")
 
     def scan(self):
         """Scan for matching BSSIDS
