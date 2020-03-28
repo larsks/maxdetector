@@ -10,7 +10,7 @@ WiFi hotspot comes online.  The software consists of several components:
 - `server.py` is [MicroPython][] code that provides a web interface for 
   managing maxdetector from a browser.
 
-- `static/md.js` is the Javascript responsible for the dynamic we ui.
+- `static/md.js` is the Javascript responsible for the dynamic web ui.
 
 - `src/maxdetector.cpp` is Arduino code (structured to compile with
   [Platformio][]) that watches for the signal from the ESP8266 and takes
@@ -38,23 +38,14 @@ the code to your ESP8266. You will need to upload the following files
 - `static/style.css`
 - `static/max.jpg`
 
-You will need to create a `main.py` file (and upload it to the the ESP8266)
-that configures things to start a boot. For example:
+You can configure wifi credentials by creating a file `wifi.json` with
+the SSID and password for your network. For example:
 
 ```
-import esp
-import gc
-import maxdetector
-import server
-
-esp.osdebug(None)
-gc.collect()
-
-m = maxdetector.Monitor()
-m.start()
-
-s = server.Server(m)
-s.start()
+{
+  "ssid": "mynetwork",
+  "password": "supersecret"
+}
 ```
 
 You can configure target networks using the API, or create a file
@@ -68,9 +59,11 @@ E.g:
 ]
 ```
 
+You can also manage targetes via the web interface.
+
 ### Installing the Arduino component
 
-After installing Platformio, just run:
+After installing [Platformio][], just run:
 
 ```
 pio run
@@ -82,16 +75,8 @@ Or to build and upload the code:
 pio run -t upload
 ```
 
-If you're Uno isn't on `/dev/ttyACM0` you will need to update the
+If your Uno isn't on `/dev/ttyACM0` you will need to update the
 `platformio.ini` file or specify a device path on the command line.
-
-## Accessing the maxdetector web UI
-
-In order to access the web interface you will need to configure the WiFi 
-connection on your ESP8266. You can find instructions for doing this
-in the MicroPython "[Network basics][]" documentation.
-
-[network basics]: http://docs.micropython.org/en/v1.9.3/esp8266/esp8266/tutorial/network_basics.html
 
 ## API
 
