@@ -85,7 +85,7 @@ class API(object):
             "silent": self.mdo.flag_silent,
         }
 
-    def api_scan_status(self):
+    def api_scan_status(self, client, req, match):
         return {
             'running': self.mdo.flag_running,
         }
@@ -94,23 +94,33 @@ class API(object):
         return self.mdo.scan_results
 
     def api_scan_control(self, client, req, match):
-        if match.group(1) == 'start':
+        mode = req.params.get('scan')
+
+        if mode in ['start', 'on']:
             self.mdo.start()
-        else:
+        elif mode in ['stop', 'off']:
             self.mdo.stop()
+        else:
+            return Response(500, "text/html",
+                            'scan must be "on" or "off"')
 
         return {"running": self.mdo.flag_running}
 
-    def api_silent_status(self):
+    def api_silent_status(self, client, req, match):
         return {
             'silent': self.mdo.flag_silent,
         }
 
     def api_silent_control(self, client, req, match):
-        if match.group(1) == 'on':
+        mode = req.params.get('silent')
+
+        if mode in ['start', 'on']:
             self.mdo.silent_on()
-        else:
+        elif mode in ['stop', 'off']:
             self.mdo.silent_off()
+        else:
+            return Response(500, "text/html",
+                            'silent must be "on" or "off"')
 
         return {"silent": self.mdo.flag_silent}
 
@@ -167,10 +177,10 @@ class Server(API):
         self.register("/api/target/([^/]*)$", self.api_delete_target, method="DELETE")
         self.register("/api/status$", self.api_status)
         self.register("/api/scan$", self.api_scan_status)
+        self.register("/api/scan$", self.api_scan_control, method="POST")
         self.register("/api/scan/results?$", self.api_scan_results)
-        self.register("/api/scan/(start|stop)$", self.api_scan_control)
         self.register("/api/silent$", self.api_silent_status)
-        self.register("/api/silent/(on|off)$", self.api_silent_control)
+        self.register("/api/silent$", self.api_silent_control, method="POST")
         self.register("/api/memory$", self.api_memory)
         self.register("/api/wifi", self.api_wifi, method="POST")
         self.register("/api/reset", self.api_reset)
