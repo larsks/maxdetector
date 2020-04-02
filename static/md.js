@@ -1,6 +1,8 @@
 var running = document.getElementById("running");
+var silent = document.getElementById("silent");
 var alarm = document.getElementById("alarm");
 var message = document.getElementById("message");
+var button_silent = document.getElementById("button_silent");
 
 var t_network = document.getElementById("t_network");
 var s_network = document.getElementById("s_network");
@@ -18,15 +20,22 @@ function clear_message() {
 
 function update_page() {
     Promise.all([
-        // Update running and alarm status
+        // Update status
         fetch('/api/status')
         .then((response) => {
             return response.json();
         })
         .then((data) => {
             clear_message();
-            running.innerHTML = data.running;
+            document.getElementById('running').innerHTML = data.running;
+            silent.innerHTML = data.silent;
             alarm.innerHTML = data.alarm;
+
+            if (data.silent)
+                button_silent.innerHTML = "Silent Off";
+            else
+                button_silent.innerHTML = "Silent On";
+
             return true;
         })
         .catch((error) => {
@@ -140,15 +149,40 @@ function update_page() {
     })
 }
 
+// Toggle the silent flag
+button_silent.addEventListener("click", function () {
+    cur_value = silent.innerHTML;
+
+    if (cur_value == "false") {
+        new_value = "on";
+    } else {
+        new_value = "off";
+    }
+
+    fetch('/api/silent', {
+        method: "POST",
+        body: `silent=${new_value}`
+    })
+        .then((response) => {
+            update_page();
+        })
+});
+
 document.getElementById("button_start").addEventListener("click", function () {
-    fetch('/api/scan/start')
+    fetch('/api/scan', {
+        method: "POST",
+        body: "scan=on"
+    })
         .then((response) => {
             update_page();
         })
 });
 
 document.getElementById("button_stop").addEventListener("click", function () {
-    fetch('/api/scan/stop')
+    fetch('/api/scan', {
+    method: "POST",
+    body: "scan=off"
+    })
         .then((response) => {
             update_page();
         })
