@@ -34,8 +34,15 @@ class Monitor(object):
         self.alarm.value(1)
         self.ready.value(1)
 
+        # This flag is True if the scanning code is running
         self.flag_running = False
+
+        # This flag is True when there is an active alarm
         self.flag_alarm = False
+
+        # This flag is True when silent mode is active
+        self.flag_silent = False
+
         self.t_scan = None
         self.nic = network.WLAN(network.STA_IF)
 
@@ -129,10 +136,17 @@ class Monitor(object):
                 self.scan_results.append((False, network))
 
         if found:
-            self.alarm.value(0)
+            if not self.flag_silent:
+                self.alarm.value(0)
             self.flag_alarm = True
         else:
             self.alarm.value(1)
             self.flag_alarm = False
 
         print("Finished scanning t={}".format(time.time()))
+
+    def silent_on(self):
+        self.flag_silent = True
+
+    def silent_off(self):
+        self.flag_silent = False

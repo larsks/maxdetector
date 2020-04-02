@@ -82,18 +82,37 @@ class API(object):
         return {
             "alarm": self.mdo.flag_alarm,
             "running": self.mdo.flag_running,
+            "silent": self.mdo.flag_silent,
+        }
+
+    def api_scan_status(self):
+        return {
+            'running': self.mdo.flag_running,
         }
 
     def api_scan_results(self, client, req, match):
         return self.mdo.scan_results
 
-    def api_scan_start(self, client, req, match):
-        self.mdo.start()
+    def api_scan_control(self, client, req, match):
+        if match.group(1) == 'start':
+            self.mdo.start()
+        else:
+            self.mdo.stop()
+
         return {"running": self.mdo.flag_running}
 
-    def api_scan_stop(self, client, req, match):
-        self.mdo.stop()
-        return {"running": self.mdo.flag_running}
+    def api_silent_status(self):
+        return {
+            'silent': self.mdo.flag_silent,
+        }
+
+    def api_silent_control(self, client, req, match):
+        if match.group(1) == 'on':
+            self.mdo.silent_on()
+        else:
+            self.mdo.silent_off()
+
+        return {"silent": self.mdo.flag_silent}
 
     def static_content(self, client, req, match):
         filename = match.group(1)
@@ -147,9 +166,11 @@ class Server(API):
         self.register("/api/target$", self.api_add_target, method="POST")
         self.register("/api/target/([^/]*)$", self.api_delete_target, method="DELETE")
         self.register("/api/status$", self.api_status)
+        self.register("/api/scan$", self.api_scan_status)
         self.register("/api/scan/results?$", self.api_scan_results)
-        self.register("/api/scan/start$", self.api_scan_start)
-        self.register("/api/scan/stop$", self.api_scan_stop)
+        self.register("/api/scan/(start|stop)$", self.api_scan_control)
+        self.register("/api/silent$", self.api_silent_status)
+        self.register("/api/silent/(on|off)$", self.api_silent_control)
         self.register("/api/memory$", self.api_memory)
         self.register("/api/wifi", self.api_wifi, method="POST")
         self.register("/api/reset", self.api_reset)
