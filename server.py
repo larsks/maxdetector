@@ -1,14 +1,23 @@
-import gc
 import ifconfig
 import json
-import machine
 import re
 import select
 import socket
 import time
 
-from machine import Timer
-from ucollections import namedtuple
+# Allow 'pydoc' to run
+try:
+    import gc
+    import machine
+
+    from machine import Timer
+except ImportError:
+    pass
+
+try:
+    from ucollections import namedtuple
+except ImportError:
+    from collections import namedtuple
 
 buf = bytearray(1024)
 
@@ -51,10 +60,13 @@ Response = namedtuple("Response", ["status_code", "content_type", "content"])
 
 
 def parse_qs(qs):
+    '''Convert a query string into a dictionary.'''
     return dict(x.split("=") for x in qs.split("&"))
 
 
 def map_content_type(filename):
+    '''Given a filename, use the extension to determine an
+    appropriate content type.'''
     try:
         ext = filename.split(".")[-1].lower()
     except IndexError:
@@ -64,21 +76,28 @@ def map_content_type(filename):
 
 
 class API(object):
+    '''Mix-in class that provides the API method implementations.'''
+
     def api_memory(self, client, req, match):
+        '''Return heap statistics from gc module'''
         return {"free": gc.mem_free(), "allocated": gc.mem_alloc()}
 
     def api_list_targets(self, client, req, match):
+        '''Return list of current configured targets'''
         return list(self.mdo.targets)
 
     def api_add_target(self, client, req, match):
+        '''Add a BSSID to list of targets'''
         self.mdo.add_target(req.params["target"])
         return list(self.mdo.targets)
 
     def api_delete_target(self, client, req, match):
+        '''Remove a BSSID from list of targets'''
         self.mdo.remove_target(match.group(1))
         return list(self.mdo.targets)
 
     def api_status(self, client, req, match):
+        '''Return basic status information'''
         return {
             "alarm": self.mdo.flag_alarm,
             "running": self.mdo.flag_running,
@@ -86,14 +105,17 @@ class API(object):
         }
 
     def api_scan_status(self, client, req, match):
+        '''Return current scan status'''
         return {
             'running': self.mdo.flag_running,
         }
 
     def api_scan_results(self, client, req, match):
+        '''Return list of visible networks'''
         return self.mdo.scan_results
 
     def api_scan_control(self, client, req, match):
+        '''Enable or disbale wifi scanning'''
         mode = req.params.get('scan')
 
         if mode in ['start', 'on']:
@@ -107,11 +129,13 @@ class API(object):
         return {"running": self.mdo.flag_running}
 
     def api_silent_status(self, client, req, match):
+        '''Return current silent mode setting'''
         return {
             'silent': self.mdo.flag_silent,
         }
 
     def api_silent_control(self, client, req, match):
+        '''Enable or disable silent mode'''
         mode = req.params.get('silent')
 
         if mode in ['start', 'on']:
@@ -125,6 +149,7 @@ class API(object):
         return {"silent": self.mdo.flag_silent}
 
     def static_content(self, client, req, match):
+        '''Serve a file from the static directory'''
         filename = match.group(1)
         content_type = map_content_type(filename)
         path = "/static/{}".format(filename)
@@ -134,7 +159,12 @@ class API(object):
         except OSError:
             return Response(404, "text/html", "Not found.")
 
-    def api_wifi_post(self, ssid, password):
+    def _wifi_post(self, ssid, password):
+        '''Update wifi configuration
+
+        This is run (via a timer) after the api_wifi method returns
+        to actually implement the changes.
+        '''
         print("api wifi post")
         ifconfig.set_credentials(
             ssid=ssid,
@@ -144,23 +174,26 @@ class API(object):
         ifconfig.connect(wait=True)
 
     def api_wifi(self, client, req, match):
+        '''Request change to wifi credentials configuration'''
         ssid = req.params["ssid"]
         password = req.params["password"]
 
         t = Timer(-1)
         t.init(period=1000, mode=Timer.ONE_SHOT,
-               callback=lambda t: self.api_wifi_post(ssid, password))
+               callback=lambda t: self._wifi_post(ssid, password))
 
         return Response(200, "text/html", "Reconfiguring wifi")
 
-    def api_reset_post(self):
+    def _reset_post(self):
+        '''Reset the esp8266'''
         print("Resetting.")
         machine.reset()
 
     def api_reset(self, client, req, match):
+        '''Request a reset'''
         t = Timer(-1)
         t.init(period=1000, mode=Timer.ONE_SHOT,
-               callback=lambda t: self.api_reset_post())
+               callback=lambda t: self._reset_post())
 
         return Response(200, "text/html", "Resetting")
 

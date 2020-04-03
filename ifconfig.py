@@ -1,9 +1,20 @@
 import json
-import network
 import time
+
+try:
+    import network
+except ImportError:
+    pass
 
 
 def connect(wait=True):
+    '''Connect to wifi.
+
+    This method will read credentials from 'wifi.json', then disconnect
+    and reconnect to wifi. If `wait` is `True` (the default), loop until
+    there is a successful connection.
+    '''
+
     try:
         with open('wifi.json', 'r') as fd:
             credentials = json.load(fd)
@@ -34,5 +45,6 @@ def connect(wait=True):
 
 
 def set_credentials(ssid, password):
+    '''Store wifi credentials to `wifi.json`'''
     with open('wifi.json', 'w') as fd:
         json.dump({'ssid': ssid, 'password': password}, fd)
