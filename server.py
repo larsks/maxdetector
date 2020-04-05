@@ -65,8 +65,7 @@ def parse_qs(qs):
 
 
 def map_content_type(filename):
-    '''Given a filename, use the extension to determine an
-    appropriate content type.'''
+    '''Map a filename to a content type'''
     try:
         ext = filename.split(".")[-1].lower()
     except IndexError:
@@ -123,8 +122,7 @@ class API(object):
         elif mode in ['stop', 'off']:
             self.mdo.stop()
         else:
-            return Response(500, "text/html",
-                            'scan must be "on" or "off"')
+            raise ValueError('scan must be "on" or "off"')
 
         return {"running": self.mdo.flag_running}
 
@@ -143,8 +141,7 @@ class API(object):
         elif mode in ['stop', 'off']:
             self.mdo.silent_off()
         else:
-            return Response(500, "text/html",
-                            'silent must be "on" or "off"')
+            raise ValueError('silent must be "on" or "off"')
 
         return {"silent": self.mdo.flag_silent}
 
@@ -157,7 +154,7 @@ class API(object):
         try:
             return Response(200, content_type, open(path))
         except OSError:
-            return Response(404, "text/html", "Not found.")
+            raise KeyError("Not found.\n")
 
     def _wifi_post(self, ssid, password):
         '''Update wifi configuration
@@ -175,14 +172,18 @@ class API(object):
 
     def api_wifi(self, client, req, match):
         '''Request change to wifi credentials configuration'''
-        ssid = req.params["ssid"]
-        password = req.params["password"]
+        try:
+            ssid = req.params["ssid"]
+            password = req.params["password"]
+        except KeyError:
+            raise ValueError('Request must contain both '
+                             '"ssid" and "password"')
 
         t = Timer(-1)
         t.init(period=1000, mode=Timer.ONE_SHOT,
                callback=lambda t: self._wifi_post(ssid, password))
 
-        return Response(200, "text/html", "Reconfiguring wifi")
+        return Response(200, "text/html", "Reconfiguring wifi\n")
 
     def _reset_post(self):
         '''Reset the esp8266'''
@@ -195,7 +196,7 @@ class API(object):
         t.init(period=1000, mode=Timer.ONE_SHOT,
                callback=lambda t: self._reset_post())
 
-        return Response(200, "text/html", "Resetting")
+        return Response(200, "text/html", "Resetting\n")
 
 
 class Server(API):
@@ -204,6 +205,11 @@ class Server(API):
         self.port = port
         self.routes = []
         self.running = False
+
+        self.add_routes()
+
+    def add_routes(self):
+        '''Register HTTP route handlers'''
 
         self.register("/api/target$", self.api_list_targets, method="GET")
         self.register("/api/target$", self.api_add_target, method="POST")
@@ -221,6 +227,8 @@ class Server(API):
         self.register("/$", self.index)
 
     def register(self, path, handler, method="GET"):
+        '''Associate a handler function with a route'''
+
         self.routes.append(
             {
                 "path": path,
@@ -231,6 +239,8 @@ class Server(API):
         )
 
     def lookup_route(self, req):
+        '''Find a registered route to handle the given request'''
+
         for route in self.routes:
             if route["method"] != req.method:
                 continue
@@ -250,9 +260,11 @@ class Server(API):
         return route, match
 
     def handle_request(self, client, req):
+        '''Handle a client request and return a Response'''
+
         route, match = self.lookup_route(req)
         if route is None:
-            return Response(404, "text/plain", "No handler for {}".format(req.path))
+            raise KeyError("No handler for {}\n".format(req.path))
 
         res = route["handler"](client, req, match)
         if not isinstance(res, Response):
@@ -260,7 +272,9 @@ class Server(API):
 
         return res
 
-    def handle_response(self, client, res, req):
+    def send_response(self, client, res, req):
+        '''Send a response to the client'''
+
         nb = client.write(
             "HTTP/1.1 {} {}\r\n".format(
                 res.status_code, STATUS_MESSAGE.get(res.status_code, "UNKNOWN")
@@ -290,6 +304,8 @@ class Server(API):
         return nb
 
     def send_file(self, client, fd):
+        '''Send content from a file to the given client'''
+
         size = 0
         while True:
             nb = fd.readinto(buf)
@@ -305,6 +321,8 @@ class Server(API):
         return Response(200, "text/html", open("ui.html"))
 
     def read_request(self, client, addr):
+        '''Read a request from the client and return a Request object'''
+
         state = 0
         clen = None
         params = {}
@@ -365,6 +383,11 @@ class Server(API):
 
         while True:
             events = poll.poll(1000)
+
+            # This is where we would put periodic processing that needs
+            # to happen while waiting for requests.  But we don't have
+            # any, so all you get is this comment.
+
             if not events:
                 continue
 
@@ -374,7 +397,21 @@ class Server(API):
             try:
                 req = self.read_request(client, addr)
                 res = self.handle_request(client, req)
-                size = self.handle_response(client, res, req)
+            except Exception as err:
+                if isinstance(err, KeyError):
+                    status_code = 404
+                else:
+                    status_code = 500
+
+                print("ERROR: Failed handling request from {}: {}: {}"
+                      .format(addr[0], type(err), err))
+                res = Response(status_code, "text/html",
+                               "An unexpected error has occurred: {}\n".format(err))
+
+            try:
+                size = self.send_response(client, res, req)
+            except Exception as err:
+                print("ERROR: Failed sending response to {}: {}".format(addr[0], err))
                 print(
                     '{} - - [{}] "{} {} {}" {} {}'.format(
                         addr[0],
@@ -386,8 +423,6 @@ class Server(API):
                         size,
                     )
                 )
-            except Exception as err:
-                print("ERROR: Failed handling request from {}: {}".format(addr[0], err))
 
             print("Closing connection from {}".format(addr[0]))
             client.close()
