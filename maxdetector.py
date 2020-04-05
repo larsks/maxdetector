@@ -52,6 +52,7 @@ class Monitor(object):
         self.store_targets()
 
     def load_targets(self):
+        '''Read list of targets from the targets file'''
         try:
             with open(self.targets_file) as fd:
                 targets = json.load(fd)
@@ -60,14 +61,17 @@ class Monitor(object):
             print('ERROR: failed to load targets: {}'.format(err))
 
     def store_targets(self):
+        '''Save list of targets to targets file'''
         with open(self.targets_file, 'w') as fd:
             json.dump(list(self.targets), fd)
 
     def add_target(self, target):
+        '''Add a target and update targets file'''
         self.targets.add(target)
         self.store_targets()
 
     def remove_target(self, target):
+        '''Remove a target and update targets file'''
         self.targets.remove(target)
         self.store_targets()
 
@@ -146,7 +150,13 @@ class Monitor(object):
         print("Finished scanning t={}".format(time.time()))
 
     def silent_on(self):
+        '''Enable silent mode.
+
+        When silent mode is enabled, do not raise the ALARM signal
+        when an alarm is active.
+        '''
         self.flag_silent = True
 
     def silent_off(self):
+        '''Disable silent mode'''
         self.flag_silent = False
