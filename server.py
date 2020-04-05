@@ -265,17 +265,19 @@ class BaseServer(object):
                 size = self.send_response(client, res, req)
             except Exception as err:
                 print("ERROR: Failed sending response to {}: {}".format(addr[0], err))
-                print(
-                    '{} - - [{}] "{} {} {}" {} {}'.format(
-                        addr[0],
-                        time.time(),
-                        req.method,
-                        req.path,
-                        req.version,
-                        res.status_code,
-                        size,
-                    )
+                size = 0
+
+            print(
+                '{} - - [{}] "{} {} {}" {} {}'.format(
+                    addr[0],
+                    time.time(),
+                    req.method,
+                    req.path,
+                    req.version,
+                    res.status_code,
+                    size,
                 )
+            )
 
             print("Closing connection from {}".format(addr[0]))
             client.close()
