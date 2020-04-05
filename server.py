@@ -74,37 +74,51 @@ def map_content_type(filename):
     return EXTENSIONS.get(ext, "application/octet-stream")
 
 
+class Route(object):
+    '''Associates a request pattern with a handler'''
+
+    def __init__(self, pattern, handler, method='GET'):
+        self.pattern = pattern
+        self.handler = handler
+        self.method = method
+
+        self._re = re.compile(pattern)
+
+    def match(self, method, path):
+        '''Test if this route matches the given method and path.
+
+        Return the match object if yes, otherwise return None.
+        '''
+
+        if method != self.method:
+            return None
+
+        return self._re.match(path)
+
+
 class BaseServer(object):
+    '''A simple HTTP server.'''
+
     def __init__(self, port=80, poll_interval=1000):
         self.port = port
         self.poll_interval = poll_interval
         self.routes = []
         self.running = False
 
-    def register(self, path, handler, method="GET"):
+    def register(self, pattern, handler, method="GET"):
         '''Associate a handler function with a route'''
 
-        self.routes.append(
-            {
-                "path": path,
-                "re": re.compile(path),
-                "handler": handler,
-                "method": method,
-            }
-        )
+        self.routes.append(Route(pattern, handler, method))
 
     def lookup_route(self, req):
         '''Find a registered route to handle the given request'''
 
         for route in self.routes:
-            if route["method"] != req.method:
-                continue
-
-            match = route["re"].match(req.path)
+            match = route.match(req.method, req.path)
             if match:
                 print(
                     "method {} path {} matched {}".format(
-                        req.method, req.path, route["path"],
+                        req.method, req.path, route.pattern,
                     )
                 )
                 break
@@ -121,7 +135,7 @@ class BaseServer(object):
         if route is None:
             raise KeyError("No handler for {}\n".format(req.path))
 
-        res = route["handler"](client, req, match)
+        res = route.handler(client, req, match)
         if not isinstance(res, Response):
             res = Response(200, None, res)
 
