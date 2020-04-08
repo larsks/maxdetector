@@ -26,6 +26,8 @@ upload: .lastupload
 
 .lastupload: $(FILES)
 	@set -e; \
+	$(PYBOARD) -d $(PYBOARD_DEVICE) -b $(PYBOARD_SPEED) \
+		-f mkdir /static > /dev/null 2>&1 || :; \
 	for file in $?; do \
 		echo "upload $$file"; \
 		$(PYBOARD) -d $(PYBOARD_DEVICE) -b $(PYBOARD_SPEED) \
